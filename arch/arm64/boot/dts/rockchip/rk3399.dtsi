@@ -2307,7 +2307,8 @@
 					<4 RK_PA4 1 &pcfg_pull_none>,
 					<4 RK_PA5 1 &pcfg_pull_none>,
 					<4 RK_PA6 1 &pcfg_pull_none>,
-					<4 RK_PA7 1 &pcfg_pull_none>;
+					<4 RK_PA7 1 &pcfg_pull_none>,
+	                		<4 RK_PA0 1 &pcfg_pull_none>;
 			};
 		};
 
