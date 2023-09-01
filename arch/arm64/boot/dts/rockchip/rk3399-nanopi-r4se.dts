@@ -22,17 +22,63 @@
 	i2s1-sound {
     	compatible = "simple-audio-card";
     	simple-audio-card,format = "i2s";
-	    simple-audio-card,name = "Bucikv3,I2S-codec";
-	    simple-audio-card,mclk-fs = <512>;
-    	simple-audio-card,cpu {
+	simple-audio-card,name = "Bucikv4,I2S-codec";
+	simple-audio-card,mclk-fs = <512>;
+	simple-audio-card,cpu {
 		                      bitclock-master;
-                              frame-master;
+                                      frame-master;
 		                      sound-dai = <&i2s1>;
 	    };
+
+/*
+	simple-audio-card,widgets =
+                "Microphone", "Mic Jack",
+                "Line", "Line In",
+                "Line", "Line Out",
+                "Headphone", "Headphone Jack";
+        simple-audio-card,routing =
+                "MIC_IN", "Mick Jack",
+                "Mic Jack", "Mic Bias",
+                "Headphone Jack", "HP_OUT";
+*/
+/*	    
+	    simple-audio-card,widgets = "LINE_IN", 
+		"MIC_IN", 
+		"HP_OUT", 
+	        "LINE_OUT", 
+	        "Mic Bias", 
+	        "HP", 
+	        "LO", 
+	        "Capture Mux", 
+	        "Headphone Mux", 
+	        "Digital Input Mux", 
+	        "DAP Mux",
+	        "DAP MIX Mux",
+	        "DAP",
+	        "AIFIN",
+	        "AIFOUT",
+	        "ADC",
+	        "DAC";
+	        
+	     simple-audio-card,routing = "Capture Mux", 
+		"ADC",
+		"AIFOUT",
+		"DAP Mux",
+		"DAP",
+		"DAP MIX Mux",
+		"DAP",
+		"Digital Input Mux",
+		"DAC",
+		"Headphone Mux",
+		"LO",
+		"LINE_OUT",
+		"HP_OUT";
+*/	    
 	    simple-audio-card,codec {
-		                        clocks = <&sgtl5000_clk>;
-		                        sound-dai = <&sgtl5000>;
+                    clocks = <&sgtl5000_clk>;
+                    sound-dai = <&sgtl5000>;
 	    };
+
     };
 
     sgtl5000_clk: sgtl5000-oscillator  {
@@ -132,6 +178,8 @@
 		VDDA-supply = <&vdda_codec>;
 		VDDIO-supply = <&vddio_codec>;
 		//VDDD-supply = <&vddd_codec>;
+		micbias-resistor-k-ohms = <2>;
+		micbias-voltage-m-volts = <2750>;
 		status = "okay";
 	};
 };

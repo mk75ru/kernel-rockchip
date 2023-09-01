@@ -48,9 +48,9 @@ static const struct reg_default sgtl5000_reg_defaults[] = {
 	{ SGTL5000_CHIP_PAD_STRENGTH,		0x015f },
 	{ SGTL5000_CHIP_ANA_ADC_CTRL,		0x0000 },
 	{ SGTL5000_CHIP_ANA_HP_CTRL,		0x1818 },
-	{ SGTL5000_CHIP_ANA_CTRL,		0x0111 },
-	{ SGTL5000_CHIP_REF_CTRL,		0x0000 },
-	{ SGTL5000_CHIP_MIC_CTRL,		0x0000 },
+	{ SGTL5000_CHIP_ANA_CTRL,		0x0000 },
+	{ SGTL5000_CHIP_REF_CTRL,		0x0001 },
+	{ SGTL5000_CHIP_MIC_CTRL,		0x0163 },
 	{ SGTL5000_CHIP_LINE_OUT_CTRL,		0x0000 },
 	{ SGTL5000_CHIP_LINE_OUT_VOL,		0x0404 },
 	{ SGTL5000_CHIP_PLL_CTRL,		0x5000 },
@@ -268,18 +268,22 @@ static int mic_bias_event(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	struct sgtl5000_priv *sgtl5000 = snd_soc_component_get_drvdata(component);
-
+	dev_info(component->dev,"sgtl5000 mic_bias_event=0x%x",event);
+	int rc;
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		/* change mic bias resistor */
-		snd_soc_component_update_bits(component, SGTL5000_CHIP_MIC_CTRL,
-			SGTL5000_BIAS_R_MASK,
-			sgtl5000->micbias_resistor << SGTL5000_BIAS_R_SHIFT);
+		sgtl5000->micbias_resistor = 1;
+		rc =snd_soc_component_update_bits(component, SGTL5000_CHIP_MIC_CTRL,
+			SGTL5000_BIAS_R_MASK,sgtl5000->micbias_resistor << SGTL5000_BIAS_R_SHIFT);
+	    	dev_info(component->dev,"sgtl5000 event SND_SOC_DAPM_POST_PMU write result=0x%x",rc);
+
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
-		snd_soc_component_update_bits(component, SGTL5000_CHIP_MIC_CTRL,
-				SGTL5000_BIAS_R_MASK, 0);
+		rc = snd_soc_component_update_bits(component, SGTL5000_CHIP_MIC_CTRL,
+				SGTL5000_BIAS_R_MASK, 1 << SGTL5000_BIAS_R_SHIFT);
+		dev_info(component->dev,"sgtl5000 event SND_SOC_DAPM_PRE_PM write result=0x%x",rc);
 		break;
 	}
 	return 0;
@@ -1491,9 +1495,11 @@ static int sgtl5000_probe(struct snd_soc_component *component)
 	snd_soc_component_update_bits(component, SGTL5000_CHIP_ANA_CTRL,
 		zcd_mask, zcd_mask);
 
-	snd_soc_component_update_bits(component, SGTL5000_CHIP_MIC_CTRL,
+	sgtl5000->micbias_resistor=1;
+	int rc =snd_soc_component_update_bits(component, SGTL5000_CHIP_MIC_CTRL,
 			SGTL5000_BIAS_R_MASK,
 			sgtl5000->micbias_resistor << SGTL5000_BIAS_R_SHIFT);
+	dev_info(component->dev,"sgtl5000_probe write result=0x%x",rc); 
 
 	snd_soc_component_update_bits(component, SGTL5000_CHIP_MIC_CTRL,
 			SGTL5000_BIAS_VOLT_MASK,
@@ -1509,6 +1515,11 @@ static int sgtl5000_probe(struct snd_soc_component *component)
 	snd_soc_component_update_bits(component, SGTL5000_CHIP_ADCDAC_CTRL,
 		SGTL5000_DAC_MUTE_LEFT | SGTL5000_DAC_MUTE_RIGHT, 0);
 
+	snd_soc_component_update_bits(component, SGTL5000_CHIP_ANA_CTRL,0xFFFF,0x0000);
+	snd_soc_component_update_bits(component, SGTL5000_CHIP_REF_CTRL,0xFFFF,0x0001);
+	rc = snd_soc_component_update_bits(component, SGTL5000_CHIP_MIC_CTRL,0xFFFF,0x0163);
+	dev_info(component->dev,"sgtl5000_probe2 write result=0x%x",rc); 
+		
 	return 0;
 
 err:
@@ -1721,6 +1732,7 @@ static int sgtl5000_i2c_probe(struct i2c_client *client,
 	if (np) {
 		if (!of_property_read_u32(np,
 			"micbias-resistor-k-ohms", &value)) {
+			dev_info(&client->dev,"sgtl5000 micbias-resistor-k-ohms=%d\n",value);
 			switch (value) {
 			case SGTL5000_MICBIAS_OFF:
 				sgtl5000->micbias_resistor = 0;
@@ -1765,21 +1777,39 @@ static int sgtl5000_i2c_probe(struct i2c_client *client,
 			value = I2S_LRCLK_STRENGTH_LOW;
 		sgtl5000->lrclk_strength = value;
 	}
-
+	dev_info(&client->dev,"sgtl5000 lrclk-strength=0x%x",sgtl5000->lrclk_strength);
 	sgtl5000->sclk_strength = I2S_SCLK_STRENGTH_LOW;
 	if (!of_property_read_u32(np, "sclk-strength", &value)) {
 		if (value > I2S_SCLK_STRENGTH_HIGH)
 			value = I2S_SCLK_STRENGTH_LOW;
 		sgtl5000->sclk_strength = value;
 	}
-
+	dev_info(&client->dev,"sgtl5000 sclk-strength=0x%x",sgtl5000->sclk_strength);
 	/* Ensure sgtl5000 will start with sane register values */
+	
+	dev_info(&client->dev,"sgtl5000_fill_defaults");
 	sgtl5000_fill_defaults(client);
+
 
 	ret = devm_snd_soc_register_component(&client->dev,
 			&sgtl5000_driver, &sgtl5000_dai, 1);
 	if (ret)
 		goto disable_clk;
+
+        dev_info(&client->dev,"sgtl5000_three_regs_defaults");
+        struct sgtl5000_priv *sgtl50002 = i2c_get_clientdata(client);
+	regmap_write(sgtl50002->regmap,0x24,0x0000);
+	regmap_write(sgtl50002->regmap,0x28,0x0001);
+	regmap_write(sgtl50002->regmap,0x2a,0x0163);
+        int reg0x24=0; 
+	int reg0x28=0; 
+        int reg0x2a=0;
+        regmap_read(sgtl5000->regmap, 0x24, &reg0x24);
+        regmap_read(sgtl5000->regmap, 0x28, &reg0x28);
+	regmap_read(sgtl5000->regmap, 0x2a, &reg0x2a);
+        dev_info(&client->dev,"sgtl5000 reg0x24=%d",reg0x24);
+	dev_info(&client->dev,"sgtl5000 reg0x28=%d",reg0x28);
+	dev_info(&client->dev,"sgtl5000 reg0x2a=%d",reg0x2a);
 
 	return 0;
 
